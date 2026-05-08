@@ -17,6 +17,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -38,12 +39,30 @@ export default function SignUpPage() {
       setError(error.message);
       setLoading(false);
     } else if (data.session) {
+      setRedirecting(true);
       router.push("/dashboard");
     } else {
       setSuccess(true);
       setLoading(false);
     }
   };
+
+  if (redirecting) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
+          <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-teal-700 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Setting up your account</h2>
+          <p className="text-gray-500 text-sm">Taking you to your dashboard…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
