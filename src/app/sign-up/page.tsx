@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ClaimIntelLogo from "@/components/ClaimIntelLogo";
 
 const supabase = createClient(
   "https://mzrtilffsprxrymazckn.supabase.co",
@@ -88,17 +89,13 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-8 h-8 bg-teal-700 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-gray-900">ClaimIntel</span>
-          </Link>
-          <p className="text-gray-500 text-sm mt-2">Create your practice account</p>
+        <div className="flex justify-center mb-8">
+          <div className="text-center">
+            <Link href="/" className="inline-flex">
+              <ClaimIntelLogo size={30} textSizeClassName="text-xl" />
+            </Link>
+            <p className="text-gray-500 text-sm mt-2">Create your practice account</p>
+          </div>
         </div>
 
         {/* Card */}
