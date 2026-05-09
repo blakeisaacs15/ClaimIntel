@@ -1,15 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ClaimIntelLogo from "@/components/ClaimIntelLogo";
-
-const supabase = createClient(
-  "https://mzrtilffsprxrymazckn.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase";
 
 export default function SignUpPage() {
   const router = useRouter();

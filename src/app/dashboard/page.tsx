@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import StatsCard from "@/components/dashboard/StatsCard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import UpcomingRisk from "@/components/dashboard/UpcomingRisk";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase";
 
 export default function DashboardPage() {
   const [analysis, setAnalysis] = useState<any>(null);
