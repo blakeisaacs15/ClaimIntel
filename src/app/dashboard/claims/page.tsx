@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import AppealModal from "@/components/dashboard/AppealModal";
 import { supabase } from "@/lib/supabase";
 
 export default function ClaimsPage() {
@@ -10,6 +11,7 @@ export default function ClaimsPage() {
   const [isDemo, setIsDemo] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [appealClaim, setAppealClaim] = useState<any | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -65,6 +67,9 @@ export default function ClaimsPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <DashboardSidebar />
+      {appealClaim && (
+        <AppealModal claim={appealClaim} onClose={() => setAppealClaim(null)} />
+      )}
       <div className="flex-1 overflow-auto">
         <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10">
           <div>
@@ -108,8 +113,8 @@ export default function ClaimsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {["Claim ID", "Patient", "Payer", "Procedure", "Amount", "Denial Reason", "Date"].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold text-gray-400 px-5 py-3">{h}</th>
+                    {["Claim ID", "Patient", "Payer", "Procedure", "Amount", "Denial Reason", "Date", ""].map((h, i) => (
+                      <th key={i} className="text-left text-xs font-semibold text-gray-400 px-5 py-3">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -123,6 +128,14 @@ export default function ClaimsPage() {
                       <td className="px-5 py-4 text-sm font-semibold text-gray-900">${Number(claim.amount || 0).toLocaleString()}</td>
                       <td className="px-5 py-4 text-sm text-gray-600 max-w-xs truncate">{claim.denial_reason ?? "—"}</td>
                       <td className="px-5 py-4 text-sm text-gray-400">{claim.date_of_service ?? "—"}</td>
+                      <td className="px-5 py-4">
+                        <button
+                          onClick={() => setAppealClaim(claim)}
+                          className="text-xs font-semibold text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          Appeal
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
