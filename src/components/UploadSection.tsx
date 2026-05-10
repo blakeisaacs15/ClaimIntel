@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity";
 
 const LOADING_STEPS = [
   { label: "Reading your claims data...", duration: 1500 },
@@ -243,6 +244,7 @@ export default function UploadSection() {
         }
       }
 
+      logActivity("upload_claims", { fileCount: files.length });
       router.push("/dashboard");
     } catch (err) {
       setError("Something went wrong. Please try again.");

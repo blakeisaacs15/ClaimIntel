@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import AppealModal from "@/components/dashboard/AppealModal";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity";
 
 interface Procedure {
   ClaimProcNum: number;
@@ -85,6 +86,7 @@ export default function HoldsPage() {
       setClaimActions(data.claimActions);
       setTotalAtRisk(data.totalAtRisk);
       setInsight(data.insight);
+      logActivity("view_holds", { claimCount: data.claims?.length });
     } catch (err: any) {
       setError(err.message);
     } finally {

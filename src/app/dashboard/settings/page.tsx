@@ -4,72 +4,216 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { supabase } from "@/lib/supabase";
+import { ACTION_LABELS } from "@/lib/activity";
+
+interface ActivityEntry {
+  id: string;
+  action: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+const inputCls =
+  "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
+const primaryBtn =
+  "bg-teal-700 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-teal-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+
+async function upsertSettings(payload: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+  const { data: existing } = await supabase
+    .from("user_settings").select("user_id").eq("user_id", session.user.id).single();
+  return existing
+    ? supabase.from("user_settings").update(payload).eq("user_id", session.user.id)
+    : supabase.from("user_settings").insert({ user_id: session.user.id, ...payload });
+}
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
+  const [lastSignIn, setLastSignIn] = useState<string | null>(null);
+
+  // Practice Profile
+  const [practiceName, setPracticeName] = useState("");
+  const [practiceAddress, setPracticeAddress] = useState("");
+  const [practiceCityStateZip, setPracticeCityStateZip] = useState("");
+  const [practicePhone, setPracticePhone] = useState("");
+  const [providerName, setProviderName] = useState("");
+  const [npiNumber, setNpiNumber] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileStatus, setProfileStatus] = useState<"idle" | "success" | "error">("idle");
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Account — display name + email
+  const [displayName, setDisplayName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<"idle" | "success" | "error">("idle");
+  const [accountMsg, setAccountMsg] = useState<string | null>(null);
+
+  // Password
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState<"idle" | "success" | "error">("idle");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // OD Key
   const [odKey, setOdKey] = useState("");
   const [savedKey, setSavedKey] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState(false);
+  const [keyStatus, setKeyStatus] = useState<"idle" | "success" | "error">("idle");
+  const [keyError, setKeyError] = useState<string | null>(null);
+
+  // Team & Activity
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
+
   const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        router.push("/sign-in");
-        return;
+      if (!session) { router.push("/sign-in"); return; }
+
+      setUserEmail(session.user.email ?? "");
+      setLastSignIn((session.user as any).last_sign_in_at ?? null);
+
+      const { data: settings } = await supabase
+        .from("user_settings").select("*").eq("user_id", session.user.id).single();
+
+      if (settings) {
+        setSavedKey(settings.od_customer_key ?? null);
+        setDisplayName(settings.display_name ?? "");
+        setPracticeName(settings.practice_name ?? "");
+        setPracticeAddress(settings.practice_address ?? "");
+        setPracticeCityStateZip(settings.practice_city_state_zip ?? "");
+        setPracticePhone(settings.practice_phone ?? "");
+        setProviderName(settings.provider_name ?? "");
+        setNpiNumber(settings.npi_number ?? "");
       }
-      const { data } = await supabase
-        .from("user_settings")
-        .select("od_customer_key")
+
+      const { data: log } = await supabase
+        .from("activity_log").select("*")
         .eq("user_id", session.user.id)
-        .single();
-      if (data?.od_customer_key) setSavedKey(data.od_customer_key);
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      setActivityLog(log ?? []);
       setLoading(false);
     });
   }, [router]);
 
-  const handleSave = async () => {
-    if (!odKey.trim()) return;
-    setSaving(true);
-    setStatus("idle");
-    setErrorMsg(null);
+  // ── save handlers ─────────────────────────────────────────────────────────
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setSaving(false); return; }
-
-    // Check if a row already exists for this user
-    const { data: existing, error: selectError } = await supabase
-      .from("user_settings")
-      .select("user_id")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (selectError && selectError.code !== "PGRST116") {
-      // PGRST116 = no rows found, which is fine; anything else is unexpected
-      console.error("Settings select error:", selectError);
-      setErrorMsg(selectError.message);
-      setStatus("error");
-      setSaving(false);
-      return;
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    setProfileStatus("idle");
+    setProfileError(null);
+    try {
+      const { error } = await upsertSettings({
+        practice_name: practiceName.trim(),
+        practice_address: practiceAddress.trim(),
+        practice_city_state_zip: practiceCityStateZip.trim(),
+        practice_phone: practicePhone.trim(),
+        provider_name: providerName.trim(),
+        npi_number: npiNumber.trim(),
+      });
+      setProfileStatus(error ? "error" : "success");
+      if (error) setProfileError(error.message);
+    } catch (e: any) {
+      setProfileStatus("error");
+      setProfileError(e.message);
     }
+    setSavingProfile(false);
+  };
 
-    const payload = { od_customer_key: odKey.trim() };
-    const { error } = existing
-      ? await supabase.from("user_settings").update(payload).eq("user_id", session.user.id)
-      : await supabase.from("user_settings").insert({ user_id: session.user.id, ...payload });
+  const saveAccount = async () => {
+    setSavingAccount(true);
+    setAccountStatus("idle");
+    setAccountMsg(null);
+    try {
+      const { error: settingsErr } = await upsertSettings({ display_name: displayName.trim() });
 
+      if (newEmail.trim() && newEmail.trim() !== userEmail) {
+        const { error: emailErr } = await supabase.auth.updateUser({ email: newEmail.trim() });
+        if (emailErr) {
+          setAccountMsg(emailErr.message);
+          setAccountStatus("error");
+          setSavingAccount(false);
+          return;
+        }
+        setAccountMsg(`Confirmation sent to ${newEmail.trim()}. Email updates after you confirm.`);
+        setNewEmail("");
+        setAccountStatus("success");
+        setSavingAccount(false);
+        return;
+      }
+
+      setAccountStatus(settingsErr ? "error" : "success");
+      if (settingsErr) setAccountMsg(settingsErr.message);
+    } catch (e: any) {
+      setAccountStatus("error");
+      setAccountMsg(e.message);
+    }
+    setSavingAccount(false);
+  };
+
+  const changePassword = async () => {
+    setPasswordError(null);
+    if (!newPassword) return;
+    if (newPassword !== confirmPassword) { setPasswordError("Passwords do not match."); return; }
+    if (newPassword.length < 8) { setPasswordError("Password must be at least 8 characters."); return; }
+    setSavingPassword(true);
+    setPasswordStatus("idle");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
-      console.error("Settings save error:", error);
-      setErrorMsg(error.message);
-      setStatus("error");
+      setPasswordError(error.message);
+      setPasswordStatus("error");
     } else {
-      setSavedKey(odKey.trim());
-      setOdKey("");
-      setStatus("success");
+      setPasswordStatus("success");
+      setNewPassword("");
+      setConfirmPassword("");
     }
-    setSaving(false);
+    setSavingPassword(false);
+  };
+
+  const saveKey = async () => {
+    if (!odKey.trim()) return;
+    setSavingKey(true);
+    setKeyStatus("idle");
+    setKeyError(null);
+    try {
+      const { error } = await upsertSettings({ od_customer_key: odKey.trim() });
+      if (error) {
+        setKeyError(error.message);
+        setKeyStatus("error");
+      } else {
+        setSavedKey(odKey.trim());
+        setOdKey("");
+        setKeyStatus("success");
+      }
+    } catch (e: any) {
+      setKeyError(e.message);
+      setKeyStatus("error");
+    }
+    setSavingKey(false);
   };
 
   if (loading) {
@@ -83,6 +227,8 @@ export default function SettingsPage() {
     );
   }
 
+  const lastAction = activityLog[0] ?? null;
+
   return (
     <div className="flex h-screen overflow-hidden">
       <DashboardSidebar />
@@ -90,65 +236,238 @@ export default function SettingsPage() {
         <header className="bg-white border-b border-gray-100 h-16 flex items-center px-8 sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">Settings</h1>
-            <p className="text-xs text-gray-400">Manage your integration keys</p>
+            <p className="text-xs text-gray-400">Manage your practice profile, account, and integrations</p>
           </div>
         </header>
 
-        <main className="p-8 max-w-2xl">
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">Open Dental Integration</h2>
+        <main className="p-8 max-w-2xl space-y-8">
+
+          {/* ── 1. Practice Profile ──────────────────────────────────────────── */}
+          <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Practice Profile</h2>
             <p className="text-xs text-gray-400 mb-5">
-              Your API authorization token from Open Dental. Used to fetch live claim data for the Hold Claims page.
+              Used as the letterhead in generated appeal letters and documents.
             </p>
 
-            {savedKey && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-5 text-sm">
-                <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-green-800">
-                  Key saved &middot;{" "}
-                  <span className="font-mono">{savedKey.slice(0, 10)}&bull;&bull;&bull;</span>
-                </span>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Practice Name</label>
+                <input type="text" value={practiceName} onChange={e => setPracticeName(e.target.value)}
+                  placeholder="Bright Smiles Dental" className={inputCls} />
               </div>
-            )}
-
-            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Provider Name</label>
+                <input type="text" value={providerName} onChange={e => setProviderName(e.target.value)}
+                  placeholder="Jane Smith, DDS" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">NPI Number</label>
+                <input type="text" value={npiNumber} onChange={e => setNpiNumber(e.target.value)}
+                  placeholder="1234567890" className={inputCls} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Street Address</label>
+                <input type="text" value={practiceAddress} onChange={e => setPracticeAddress(e.target.value)}
+                  placeholder="123 Main Street, Suite 100" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">City, State ZIP</label>
+                <input type="text" value={practiceCityStateZip} onChange={e => setPracticeCityStateZip(e.target.value)}
+                  placeholder="Austin, TX 78701" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                <input type="text" value={practicePhone} onChange={e => setPracticePhone(e.target.value)}
+                  placeholder="(512) 555-0100" className={inputCls} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-5">
+              <button onClick={saveProfile} disabled={savingProfile} className={primaryBtn}>
+                {savingProfile ? "Saving..." : "Save Practice Profile"}
+              </button>
+              {profileStatus === "success" && <span className="text-sm text-green-700">Saved.</span>}
+              {profileStatus === "error" && <span className="text-sm text-red-600">{profileError ?? "Failed to save."}</span>}
+            </div>
+          </section>
+
+          {/* ── 2. Account Settings ───────────────────────────────────────────── */}
+          <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Account Settings</h2>
+              <p className="text-xs text-gray-400">Update your display name, email, password, and integrations.</p>
+            </div>
+
+            {/* Display name + email */}
+            <div className="space-y-4 pb-6 border-b border-gray-100">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Profile</h3>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Display Name</label>
+                <input type="text" value={displayName} onChange={e => { setDisplayName(e.target.value); setAccountStatus("idle"); }}
+                  placeholder="Your name" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Email Address</label>
+                <p className="text-xs text-gray-400 mb-1.5">
+                  Current: <span className="font-medium text-gray-600">{userEmail}</span>
+                </p>
+                <input type="email" value={newEmail} onChange={e => { setNewEmail(e.target.value); setAccountStatus("idle"); }}
+                  placeholder="Enter new email to update" className={inputCls} />
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={saveAccount} disabled={savingAccount} className={primaryBtn}>
+                  {savingAccount ? "Saving..." : "Save"}
+                </button>
+                {accountStatus === "success" && !accountMsg && <span className="text-sm text-green-700">Saved.</span>}
+                {accountMsg && (
+                  <span className={`text-sm ${accountStatus === "error" ? "text-red-600" : "text-green-700"}`}>
+                    {accountMsg}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-4 pb-6 border-b border-gray-100">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Password</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
+                  <input type="password" value={newPassword}
+                    onChange={e => { setNewPassword(e.target.value); setPasswordStatus("idle"); setPasswordError(null); }}
+                    placeholder="Min. 8 characters" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Confirm Password</label>
+                  <input type="password" value={confirmPassword}
+                    onChange={e => { setConfirmPassword(e.target.value); setPasswordStatus("idle"); setPasswordError(null); }}
+                    placeholder="Repeat new password" className={inputCls} />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={changePassword} disabled={savingPassword || !newPassword} className={primaryBtn}>
+                  {savingPassword ? "Updating..." : "Change Password"}
+                </button>
+                {passwordStatus === "success" && <span className="text-sm text-green-700">Password updated.</span>}
+                {passwordError && <span className="text-sm text-red-600">{passwordError}</span>}
+              </div>
+            </div>
+
+            {/* Open Dental Integration */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Open Dental Integration</h3>
+              <p className="text-xs text-gray-400">
+                Your API authorization token from Open Dental. Used to fetch live claim data for the Hold Claims page.
+              </p>
+              {savedKey && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm">
+                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-green-800">
+                    Key saved &middot; <span className="font-mono">{savedKey.slice(0, 10)}&bull;&bull;&bull;</span>
+                  </span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   {savedKey ? "Replace API Token" : "API Token"}
                 </label>
-                <input
-                  type="password"
-                  value={odKey}
-                  onChange={(e) => { setOdKey(e.target.value); setStatus("idle"); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                <input type="password" value={odKey}
+                  onChange={e => { setOdKey(e.target.value); setKeyStatus("idle"); }}
+                  onKeyDown={e => e.key === "Enter" && saveKey()}
                   placeholder={savedKey ? "Enter new token to replace existing" : "ODFHIR YOUR_CUSTOMER_KEY"}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
+                  className={`${inputCls} font-mono`} />
                 <p className="text-xs text-gray-400 mt-1.5">
-                  Format: <span className="font-mono">ODFHIR YOUR_CUSTOMER_KEY</span> — found in your Open Dental customer portal.
+                  Format: <span className="font-mono">ODFHIR YOUR_CUSTOMER_KEY</span>
                 </p>
               </div>
-
-              {status === "success" && (
-                <p className="text-sm text-green-700 font-medium">Token saved successfully.</p>
-              )}
-              {status === "error" && (
-                <p className="text-sm text-red-600">
-                  Failed to save: {errorMsg ?? "unknown error"}
-                </p>
-              )}
-
-              <button
-                onClick={handleSave}
-                disabled={!odKey.trim() || saving}
-                className="bg-teal-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-teal-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {saving ? "Saving..." : "Save Token"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={saveKey} disabled={!odKey.trim() || savingKey} className={primaryBtn}>
+                  {savingKey ? "Saving..." : "Save Token"}
+                </button>
+                {keyStatus === "success" && <span className="text-sm text-green-700">Token saved.</span>}
+                {keyStatus === "error" && <span className="text-sm text-red-600">{keyError ?? "Failed to save."}</span>}
+              </div>
             </div>
-          </div>
+          </section>
+
+          {/* ── 3. Team & Activity Log ────────────────────────────────────────── */}
+          <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Team &amp; Activity Log</h2>
+              <p className="text-xs text-gray-400">Users on this account and their recent activity.</p>
+            </div>
+
+            {/* Team Members */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Team Members</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      {["Name", "Email", "Last Login", "Last Action"].map(h => (
+                        <th key={h} className="text-left text-xs font-semibold text-gray-400 pb-2 pr-6">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="py-3 pr-6 font-medium text-gray-900">
+                        {displayName || userEmail.split("@")[0]}
+                      </td>
+                      <td className="py-3 pr-6 text-gray-500 text-xs">{userEmail}</td>
+                      <td className="py-3 pr-6 text-gray-500 text-xs whitespace-nowrap">
+                        {formatDate(lastSignIn)}
+                      </td>
+                      <td className="py-3 text-gray-500 text-xs">
+                        {lastAction ? (
+                          <>
+                            {ACTION_LABELS[lastAction.action] ?? lastAction.action}
+                            <span className="text-gray-300 mx-1">·</span>
+                            {timeAgo(lastAction.created_at)}
+                          </>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Activity Log */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Recent Activity</h3>
+              {activityLog.length === 0 ? (
+                <p className="text-sm text-gray-400">No activity recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        {["Action", "Time"].map(h => (
+                          <th key={h} className="text-left text-xs font-semibold text-gray-400 pb-2 pr-6">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {activityLog.map(entry => (
+                        <tr key={entry.id}>
+                          <td className="py-2.5 pr-6 text-gray-700">
+                            {ACTION_LABELS[entry.action] ?? entry.action}
+                          </td>
+                          <td className="py-2.5 text-xs text-gray-400 whitespace-nowrap">
+                            {formatDate(entry.created_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+
         </main>
       </div>
     </div>

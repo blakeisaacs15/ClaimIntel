@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity";
 
 interface Claim {
   id?: string;
@@ -33,26 +35,35 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
     setError(null);
     setLetter("");
 
-    fetch("/api/generate-appeal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claim }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setLetter(data.letter ?? "");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Failed to generate appeal letter. Please try again.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled) return;
+
+      const res = await fetch("/api/generate-appeal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ claim }),
       });
+
+      if (cancelled) return;
+      const data = await res.json();
+
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setLetter(data.letter ?? "");
+        logActivity("generate_appeal", {
+          claim_id: claim.claim_id ?? claim.id,
+          payer: claim.payer,
+          procedure: claim.procedure_code,
+        });
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) { setError("Failed to generate appeal letter. Please try again."); setLoading(false); }
+    });
 
     return () => { cancelled = true; };
   }, [claim]);
