@@ -14,6 +14,8 @@ export default function ClaimsPage() {
   const [loading, setLoading] = useState(true);
   const [appealClaim, setAppealClaim] = useState<any | null>(null);
   const [showNewClaim, setShowNewClaim] = useState(false);
+  const [editClaim, setEditClaim] = useState<any | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -78,6 +80,16 @@ export default function ClaimsPage() {
           onSaved={(claim) => {
             setClaims(prev => [claim, ...prev]);
             setIsDemo(false);
+          }}
+        />
+      )}
+      {editClaim && (
+        <NewClaimModal
+          existingClaim={editClaim}
+          onClose={() => setEditClaim(null)}
+          onSaved={(updated) => {
+            setClaims(prev => prev.map(c => c.id === updated.id ? updated : c));
+            setEditClaim(null);
           }}
         />
       )}
@@ -155,12 +167,53 @@ export default function ClaimsPage() {
                       <td className="px-5 py-4 text-sm text-gray-600 max-w-xs truncate">{claim.denial_reason ?? "—"}</td>
                       <td className="px-5 py-4 text-sm text-gray-400">{claim.date_of_service ?? "—"}</td>
                       <td className="px-5 py-4">
-                        <button
-                          onClick={() => setAppealClaim(claim)}
-                          className="text-xs font-semibold text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                        >
-                          Appeal
-                        </button>
+                        {confirmDeleteId === claim.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={async () => {
+                                await supabase.from("claims").delete().eq("id", claim.id);
+                                setClaims(prev => prev.filter(c => c.id !== claim.id));
+                                setConfirmDeleteId(null);
+                              }}
+                              className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setAppealClaim(claim)}
+                              className="text-xs font-semibold text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                              Appeal
+                            </button>
+                            <button
+                              onClick={() => setEditClaim(claim)}
+                              title="Edit"
+                              className="text-gray-300 hover:text-teal-600 transition-colors p-1.5 rounded-lg hover:bg-gray-50"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(claim.id)}
+                              title="Delete"
+                              className="text-gray-300 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-gray-50"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

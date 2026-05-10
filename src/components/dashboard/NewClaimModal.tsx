@@ -27,18 +27,21 @@ interface NewClaim {
 interface NewClaimModalProps {
   onClose: () => void;
   onSaved: (claim: NewClaim) => void;
+  existingClaim?: any;
 }
 
 const inputCls =
   "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
 
-export default function NewClaimModal({ onClose, onSaved }: NewClaimModalProps) {
-  const [patient, setPatient] = useState("");
-  const [payer, setPayer] = useState("");
-  const [procedureCode, setProcedureCode] = useState("");
-  const [dateOfService, setDateOfService] = useState("");
-  const [amount, setAmount] = useState("");
-  const [denialReason, setDenialReason] = useState("");
+export default function NewClaimModal({ onClose, onSaved, existingClaim }: NewClaimModalProps) {
+  const isEditing = !!existingClaim;
+
+  const [patient, setPatient] = useState(existingClaim?.patient ?? "");
+  const [payer, setPayer] = useState(existingClaim?.payer ?? "");
+  const [procedureCode, setProcedureCode] = useState(existingClaim?.procedure_code ?? "");
+  const [dateOfService, setDateOfService] = useState(existingClaim?.date_of_service ?? "");
+  const [amount, setAmount] = useState(existingClaim?.amount != null ? String(existingClaim.amount) : "");
+  const [denialReason, setDenialReason] = useState(existingClaim?.denial_reason ?? "");
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [saving, setSaving] = useState(false);
@@ -52,7 +55,15 @@ export default function NewClaimModal({ onClose, onSaved }: NewClaimModalProps) 
         .select("id,full_name,role,color")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: true });
-      setProviders(data ?? []);
+      const provs = data ?? [];
+      setProviders(provs);
+      // Pre-select matching provider when editing
+      if (isEditing && existingClaim?.rendering_provider) {
+        const match = provs.find((p: Provider) =>
+          p.full_name.trim().toLowerCase() === existingClaim.rendering_provider.trim().toLowerCase()
+        );
+        if (match) setSelectedProviderId(match.id);
+      }
     });
   }, []);
 
@@ -67,28 +78,44 @@ export default function NewClaimModal({ onClose, onSaved }: NewClaimModalProps) 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setSaving(false); return; }
 
-    const claimId = `CLM-M${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const selectedProvider = providers.find(p => p.id === selectedProviderId);
+    const renderingProvider = selectedProvider?.full_name
+      ?? (providers.length === 0 && selectedProviderId ? selectedProviderId : null);
 
-    const { data, error: insertError } = await supabase
-      .from("claims")
-      .insert({
-        user_id: session.user.id,
-        claim_id: claimId,
-        patient: patient.trim(),
-        payer: payer.trim(),
-        procedure_code: procedureCode.trim() || null,
-        amount: parseFloat(amount.replace(/[$,]/g, "")) || 0,
-        denial_reason: denialReason.trim() || null,
-        date_of_service: dateOfService || null,
-        rendering_provider: selectedProvider?.full_name ?? null,
-        source_file: "manual",
-      })
-      .select()
-      .single();
+    const payload = {
+      patient: patient.trim(),
+      payer: payer.trim(),
+      procedure_code: procedureCode.trim() || null,
+      amount: parseFloat(amount.replace(/[$,]/g, "")) || 0,
+      denial_reason: denialReason.trim() || null,
+      date_of_service: dateOfService || null,
+      rendering_provider: renderingProvider,
+    };
 
-    if (insertError) {
-      setError(insertError.message);
+    let data: any;
+    let saveError: any;
+
+    if (isEditing) {
+      const { data: updated, error } = await supabase
+        .from("claims")
+        .update(payload)
+        .eq("id", existingClaim.id)
+        .select()
+        .single();
+      data = updated;
+      saveError = error;
+    } else {
+      const { data: inserted, error } = await supabase
+        .from("claims")
+        .insert({ ...payload, user_id: session.user.id, claim_id: `CLM-M${Math.random().toString(36).slice(2, 8).toUpperCase()}`, source_file: "manual" })
+        .select()
+        .single();
+      data = inserted;
+      saveError = error;
+    }
+
+    if (saveError) {
+      setError(saveError.message);
       setSaving(false);
       return;
     }
@@ -104,8 +131,8 @@ export default function NewClaimModal({ onClose, onSaved }: NewClaimModalProps) 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Add Claim Manually</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Enter claim details to add it to your claims list.</p>
+            <h2 className="text-base font-bold text-gray-900">{isEditing ? "Edit Claim" : "Add Claim Manually"}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{isEditing ? `Editing ${existingClaim.claim_id ?? "claim"}` : "Enter claim details to add it to your claims list."}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -230,7 +257,7 @@ export default function NewClaimModal({ onClose, onSaved }: NewClaimModalProps) 
             disabled={saving || !patient.trim() || !payer.trim()}
             className="bg-teal-700 text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-teal-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {saving ? "Saving..." : "Save Claim"}
+            {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Claim"}
           </button>
         </div>
       </div>
