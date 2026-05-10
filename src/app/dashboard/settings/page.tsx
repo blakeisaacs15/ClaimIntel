@@ -109,6 +109,12 @@ export default function SettingsPage() {
   const [newProviderRole, setNewProviderRole] = useState('Doctor');
   const [newProviderColor, setNewProviderColor] = useState(PROVIDER_COLORS[0]);
   const [addingProvider, setAddingProvider] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editNpi, setEditNpi] = useState('');
+  const [editRole, setEditRole] = useState('Doctor');
+  const [editColor, setEditColor] = useState(PROVIDER_COLORS[0]);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const router = useRouter();
 
@@ -273,6 +279,35 @@ export default function SettingsPage() {
   const deleteProvider = async (id: string) => {
     await supabase.from("providers").delete().eq("id", id);
     setProviders(prev => prev.filter(p => p.id !== id));
+    if (editingId === id) setEditingId(null);
+  };
+
+  const startEdit = (p: Provider) => {
+    setEditingId(p.id);
+    setEditName(p.full_name);
+    setEditNpi(p.npi ?? '');
+    setEditRole(p.role);
+    setEditColor(p.color);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    setSavingEdit(true);
+    const { error } = await supabase.from("providers").update({
+      full_name: editName.trim(),
+      npi: editNpi.trim() || null,
+      role: editRole,
+      color: editColor,
+    }).eq("id", editingId);
+    if (!error) {
+      setProviders(prev => prev.map(p =>
+        p.id === editingId
+          ? { ...p, full_name: editName.trim(), npi: editNpi.trim() || null, role: editRole, color: editColor }
+          : p
+      ));
+      setEditingId(null);
+    }
+    setSavingEdit(false);
   };
 
   if (loading) {
@@ -538,7 +573,49 @@ export default function SettingsPage() {
 
             {providers.length > 0 && (
               <div className="space-y-2">
-                {providers.map(p => (
+                {providers.map(p => editingId === p.id ? (
+                  <div key={p.id} className="border border-teal-200 bg-teal-50/30 rounded-xl p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
+                          className={inputCls} autoFocus />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">NPI Number</label>
+                        <input type="text" value={editNpi} onChange={e => setEditNpi(e.target.value)}
+                          placeholder="optional" className={`${inputCls} font-mono`} />
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                        <select value={editRole} onChange={e => setEditRole(e.target.value)} className={inputCls}>
+                          {PROVIDER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">Color</label>
+                        <div className="flex items-center gap-1.5">
+                          {PROVIDER_COLORS.map(c => (
+                            <button key={c} onClick={() => setEditColor(c)}
+                              className={`w-6 h-6 rounded-full transition-all ${editColor === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'hover:scale-110'}`}
+                              style={{ backgroundColor: c }} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={saveEdit} disabled={savingEdit || !editName.trim()} className={primaryBtn}>
+                        {savingEdit ? 'Saving...' : 'Save'}
+                      </button>
+                      <button onClick={() => setEditingId(null)}
+                        className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <div key={p.id} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
@@ -550,14 +627,22 @@ export default function SettingsPage() {
                         {p.role}
                       </span>
                     </div>
-                    <button
-                      onClick={() => deleteProvider(p.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => startEdit(p)}
+                        className="text-gray-300 hover:text-teal-600 transition-colors p-1"
+                        title="Edit">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => deleteProvider(p.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                        title="Delete">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
