@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import { supabase, createUserClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
   const [odKey, setOdKey] = useState("");
@@ -20,8 +20,7 @@ export default function SettingsPage() {
         router.push("/sign-in");
         return;
       }
-      const db = createUserClient(session.access_token);
-      const { data } = await db
+      const { data } = await supabase
         .from("user_settings")
         .select("od_customer_key")
         .eq("user_id", session.user.id)
@@ -40,10 +39,8 @@ export default function SettingsPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setSaving(false); return; }
 
-    const db = createUserClient(session.access_token);
-
     // Check if a row already exists for this user
-    const { data: existing, error: selectError } = await db
+    const { data: existing, error: selectError } = await supabase
       .from("user_settings")
       .select("user_id")
       .eq("user_id", session.user.id)
@@ -60,8 +57,8 @@ export default function SettingsPage() {
 
     const payload = { od_customer_key: odKey.trim() };
     const { error } = existing
-      ? await db.from("user_settings").update(payload).eq("user_id", session.user.id)
-      : await db.from("user_settings").insert({ user_id: session.user.id, ...payload });
+      ? await supabase.from("user_settings").update(payload).eq("user_id", session.user.id)
+      : await supabase.from("user_settings").insert({ user_id: session.user.id, ...payload });
 
     if (error) {
       console.error("Settings save error:", error);
