@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, createUserClient } from '@/lib/supabase';
+import { getCDTContext, extractCDTCodes, HOLD_PATTERNS } from '@/lib/dental-knowledge';
 
 const OD_BASE = 'https://api.opendental.com/api/v1';
 
@@ -46,6 +47,11 @@ export async function GET(request: Request) {
 
     const totalAtRisk = claimsWithProcs.reduce((sum, c) => sum + (c.ClaimFee ?? 0), 0);
 
+    // Build knowledge context from the actual codes present in these claims
+    const codes = extractCDTCodes(claimsWithProcs);
+    const cdtContext = getCDTContext(codes);
+    const knowledgeBlock = [cdtContext, HOLD_PATTERNS].filter(Boolean).join('\n\n');
+
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -55,12 +61,16 @@ export async function GET(request: Request) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
-        system: 'You are an expert dental insurance billing specialist. Analyze hold claims and respond with ONLY valid JSON, no other text.',
+        max_tokens: 2000,
+        system: `You are an expert dental insurance billing specialist with deep knowledge of CDT procedure codes, payer policies, and claim submission requirements. Analyze hold claims using ONLY the rules provided in the knowledge base below. Do not invent rules not listed. Respond with ONLY valid JSON, no other text.
+
+${knowledgeBlock}`,
         messages: [
           {
             role: 'user',
-            content: `These dental claims have ClaimStatus=H (on hold, not yet submitted). Each includes its procedure codes. For each claim, identify the most likely reason it is on hold and provide one specific, actionable step to get it released.
+            content: `These dental claims have ClaimStatus=H in Open Dental — they are being held at the practice and have NOT yet been submitted to the insurance carrier.
+
+Using the billing knowledge base in your system prompt, identify the most likely reason each claim is on hold and provide one specific, actionable step to get it released.
 
 Claims:
 ${JSON.stringify(claimsWithProcs, null, 2)}
@@ -71,8 +81,8 @@ Respond with ONLY this JSON structure:
   "claimActions": [
     {
       "claimNum": number,
-      "reason": "why this claim is likely on hold",
-      "action": "specific step to take to release it",
+      "reason": "why this claim is likely on hold, citing the specific rule or requirement",
+      "action": "specific step to take to release it (e.g., attach perio charting, obtain pre-auth, verify eligibility)",
       "priority": "critical" | "high" | "medium",
       "effort": "easy" | "medium" | "hard",
       "category": "authorization" | "coding" | "documentation" | "eligibility" | "billing"
