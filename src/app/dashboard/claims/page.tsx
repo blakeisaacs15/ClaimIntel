@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import AppealModal from "@/components/dashboard/AppealModal";
+import NewClaimModal from "@/components/dashboard/NewClaimModal";
 import { supabase } from "@/lib/supabase";
 
 export default function ClaimsPage() {
@@ -12,6 +13,7 @@ export default function ClaimsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [appealClaim, setAppealClaim] = useState<any | null>(null);
+  const [showNewClaim, setShowNewClaim] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -70,6 +72,15 @@ export default function ClaimsPage() {
       {appealClaim && (
         <AppealModal claim={appealClaim} onClose={() => setAppealClaim(null)} />
       )}
+      {showNewClaim && (
+        <NewClaimModal
+          onClose={() => setShowNewClaim(false)}
+          onSaved={(claim) => {
+            setClaims(prev => [claim, ...prev]);
+            setIsDemo(false);
+          }}
+        />
+      )}
       <div className="flex-1 overflow-auto">
         <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10">
           <div>
@@ -78,22 +89,37 @@ export default function ClaimsPage() {
               {`${filtered.length} denied claims · $${totalAtRisk.toLocaleString()} at risk`}
             </p>
           </div>
-          <button
-            onClick={() => router.push("/#upload")}
-            className="flex items-center gap-2 bg-teal-700 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-teal-800 transition-colors"
-          >
-            Upload New CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNewClaim(true)}
+              className="flex items-center gap-2 text-sm font-semibold text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Claim
+            </button>
+            <button
+              onClick={() => router.push("/#upload")}
+              className="flex items-center gap-2 bg-teal-700 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-teal-800 transition-colors"
+            >
+              Upload CSV
+            </button>
+          </div>
         </header>
 
         <main className="p-8">
           {isDemo && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-6">
-              No claims uploaded yet.{" "}
-              <button onClick={() => router.push("/#upload")} className="underline font-medium">
-                Upload your CSV
+              No claims yet.{" "}
+              <button onClick={() => setShowNewClaim(true)} className="underline font-medium">
+                Add a claim manually
               </button>{" "}
-              to see your real denied claims.
+              or{" "}
+              <button onClick={() => router.push("/#upload")} className="underline font-medium">
+                upload a CSV
+              </button>
+              .
             </div>
           )}
 
