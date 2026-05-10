@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import AppealModal from "@/components/dashboard/AppealModal";
 import { supabase } from "@/lib/supabase";
 
 interface Procedure {
@@ -60,6 +61,7 @@ export default function HoldsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [noKeyConfigured, setNoKeyConfigured] = useState(false);
+  const [appealClaim, setAppealClaim] = useState<any | null>(null);
   const router = useRouter();
 
   const loadData = async () => {
@@ -103,6 +105,18 @@ export default function HoldsPage() {
   const actionForClaim = (claimNum: number) =>
     claimActions.find((a) => a.claimNum === claimNum);
 
+  const toAppealClaim = (claim: HoldClaim, action: ClaimAction | undefined) => ({
+    claim_id: `CLM-${claim.ClaimNum}`,
+    patient: `Patient #${claim.PatNum}`,
+    payer: 'Insurance Company',
+    procedure_code: claim.procedures.map((p) => p.CodeSent).filter(Boolean).join(', ') || '—',
+    amount: claim.ClaimFee,
+    date_of_service: claim.DateService,
+    denial_reason: action?.reason ?? 'Claim on hold — reason undetermined',
+    holdAction: action?.action,
+    isHoldClaim: true,
+  });
+
   if (loading) {
     return (
       <div className="flex h-screen overflow-hidden">
@@ -120,6 +134,9 @@ export default function HoldsPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <DashboardSidebar />
+      {appealClaim && (
+        <AppealModal claim={appealClaim} onClose={() => setAppealClaim(null)} />
+      )}
       <div className="flex-1 overflow-auto bg-gray-50">
         <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10">
           <div>
@@ -213,9 +230,17 @@ export default function HoldsPage() {
                           </>
                         )}
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-lg font-bold text-gray-900">${claim.ClaimFee.toLocaleString()}</p>
-                        <p className="text-xs text-gray-400">fee billed</p>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-gray-900">${claim.ClaimFee.toLocaleString()}</p>
+                          <p className="text-xs text-gray-400">fee billed</p>
+                        </div>
+                        <button
+                          onClick={() => setAppealClaim(toAppealClaim(claim, action))}
+                          className="text-xs font-semibold text-teal-700 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          Appeal
+                        </button>
                       </div>
                     </div>
 
