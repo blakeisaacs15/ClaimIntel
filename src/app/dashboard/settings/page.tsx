@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import { supabase } from "@/lib/supabase";
+import { supabase, createUserClient } from "@/lib/supabase";
 
 export default function SettingsPage() {
   const [odKey, setOdKey] = useState("");
@@ -19,7 +19,8 @@ export default function SettingsPage() {
         router.push("/sign-in");
         return;
       }
-      const { data } = await supabase
+      const db = createUserClient(session.access_token);
+      const { data } = await db
         .from("user_settings")
         .select("od_customer_key")
         .eq("user_id", session.user.id)
@@ -35,7 +36,8 @@ export default function SettingsPage() {
     setStatus("idle");
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const { error } = await supabase
+    const db = createUserClient(session.access_token);
+    const { error } = await db
       .from("user_settings")
       .upsert(
         { user_id: session.user.id, od_customer_key: odKey.trim(), updated_at: new Date().toISOString() },
