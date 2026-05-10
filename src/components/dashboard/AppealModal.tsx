@@ -15,6 +15,15 @@ interface Claim {
   date_of_service?: string;
   date?: string;
   reason?: string;
+  rendering_provider?: string;
+}
+
+interface Provider {
+  id: string;
+  full_name: string;
+  npi: string | null;
+  role: string;
+  color: string;
 }
 
 interface AppealModalProps {
@@ -51,17 +60,51 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+  const [lastGeneratedProviderId, setLastGeneratedProviderId] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setLetter("");
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
+
+      let defaultProvider: Provider | null = null;
+
+      if (session) {
+        const { data: provs } = await supabase
+          .from("providers")
+          .select("id,full_name,npi,role,color")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: true });
+
+        if (!cancelled && provs?.length) {
+          setProviders(provs);
+          const renderingName = claim.rendering_provider;
+          const matched = renderingName
+            ? provs.find((p: Provider) =>
+                p.full_name.trim().toLowerCase() === renderingName.trim().toLowerCase()
+              )
+            : null;
+          defaultProvider = matched ?? null;
+          const defaultId = defaultProvider?.id ?? "";
+          setSelectedProviderId(defaultId);
+          setLastGeneratedProviderId(defaultId);
+        }
+      }
+
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      setLetter("");
+
+      const claimPayload = defaultProvider
+        ? { ...claim, providerOverride: { full_name: defaultProvider.full_name, npi: defaultProvider.npi } }
+        : claim;
 
       const res = await fetch("/api/generate-appeal", {
         method: "POST",
@@ -69,7 +112,7 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token ?? ""}`,
         },
-        body: JSON.stringify({ claim }),
+        body: JSON.stringify({ claim: claimPayload }),
       });
 
       if (cancelled) return;
@@ -86,12 +129,52 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         });
       }
       setLoading(false);
-    }).catch(() => {
-      if (!cancelled) { setError("Failed to generate appeal letter. Please try again."); setLoading(false); }
+    };
+
+    init().catch(() => {
+      if (!cancelled) {
+        setError("Failed to generate appeal letter. Please try again.");
+        setLoading(false);
+      }
     });
 
     return () => { cancelled = true; };
   }, [claim]);
+
+  const handleRegenerate = async () => {
+    const prov = providers.find(p => p.id === selectedProviderId) ?? null;
+    setLastGeneratedProviderId(selectedProviderId);
+    setLoading(true);
+    setError(null);
+    setLetter("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const claimPayload = prov
+        ? { ...claim, providerOverride: { full_name: prov.full_name, npi: prov.npi } }
+        : claim;
+
+      const res = await fetch("/api/generate-appeal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ claim: claimPayload }),
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setLetter(data.letter ?? "");
+      }
+    } catch {
+      setError("Failed to regenerate. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── Attachments ───────────────────────────────────────────────────────────
 
@@ -141,7 +224,6 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
       const lineH = 5.5;
       let y = margin;
 
-      // ── Page 1+: Letter ──────────────────────────────────────────────────
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
 
@@ -155,19 +237,11 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         y += blockH + 4;
       }
 
-      // ── Image exhibits (JPG / PNG) ────────────────────────────────────────
-      const imageAttachments = attachments.filter(f => f.type.startsWith("image/"));
-      const pdfAttachments = attachments.filter(f => f.type === "application/pdf");
-
-      // Assign exhibit indices across all attachment types in the user's order
       const exhibitOrder = attachments.map((f, i) => ({ file: f, index: i }));
 
       for (const { file, index } of exhibitOrder) {
         if (!file.type.startsWith("image/")) continue;
-
         doc.addPage();
-
-        // Exhibit header bar
         doc.setFillColor(245, 245, 245);
         doc.rect(0, 0, pageW, 16, "F");
         doc.setFont("helvetica", "bold");
@@ -179,8 +253,6 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         doc.setTextColor(120, 120, 120);
         doc.text(file.name, margin + 32, 10);
         doc.setTextColor(0, 0, 0);
-
-        // Image — fit within page with top margin for header
         const imgData = await fileToDataURL(file);
         const fmt = file.type === "image/png" ? "PNG" : "JPEG";
         const props = doc.getImageProperties(imgData);
@@ -189,12 +261,10 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         const ratio = Math.min(maxW / props.width, maxH / props.height);
         const w = props.width * ratio;
         const h = props.height * ratio;
-        // Center horizontally
-        const x = (pageW - w) / 2;
-        doc.addImage(imgData, fmt, x, 20, w, h);
+        doc.addImage(imgData, fmt, (pageW - w) / 2, 20, w, h);
       }
 
-      // ── PDF exhibits — merge via pdf-lib ──────────────────────────────────
+      const pdfAttachments = attachments.filter(f => f.type === "application/pdf");
       if (pdfAttachments.length === 0) {
         const patientName = (claim.patient ?? "patient").replace(/\s+/g, "-");
         const claimId = claim.claim_id ?? claim.id ?? "claim";
@@ -202,7 +272,6 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         return;
       }
 
-      // Convert jsPDF output to ArrayBuffer, then merge with pdf-lib
       const { PDFDocument, StandardFonts, rgb, grayscale } = await import("pdf-lib");
       const jsPDFBytes = doc.output("arraybuffer");
       const merged = await PDFDocument.load(jsPDFBytes);
@@ -211,8 +280,6 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
 
       for (const { file, index } of exhibitOrder) {
         if (file.type !== "application/pdf") continue;
-
-        // Exhibit cover page
         const cover = merged.addPage([612, 792]);
         cover.drawRectangle({ x: 0, y: 756, width: 612, height: 36, color: grayscale(0.95) });
         cover.drawText(exhibitLabel(index).toUpperCase(), {
@@ -221,12 +288,10 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
         cover.drawText(file.name, {
           x: 36, y: 746, size: 10, font: fontNormal, color: rgb(0.45, 0.45, 0.45),
         });
-
-        // Copy all pages from the attachment PDF
         const attachBytes = await file.arrayBuffer();
         const attachDoc = await PDFDocument.load(attachBytes);
-        const copied = await merged.copyPages(attachDoc, attachDoc.getPageIndices());
-        copied.forEach(p => merged.addPage(p));
+        const copiedPages = await merged.copyPages(attachDoc, attachDoc.getPageIndices());
+        copiedPages.forEach(p => merged.addPage(p));
       }
 
       const finalBytes = await merged.save();
@@ -243,6 +308,9 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
       setGenerating(false);
     }
   };
+
+  const providerChanged = selectedProviderId !== lastGeneratedProviderId;
+  const selectedProvider = providers.find(p => p.id === selectedProviderId);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -265,6 +333,39 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
           </button>
         </div>
 
+        {/* Provider selector — shown when providers exist */}
+        {providers.length > 0 && (
+          <div className="px-6 pt-4 flex-shrink-0">
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+              <div
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: selectedProvider?.color ?? "#9ca3af" }}
+              />
+              <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">Signing provider</label>
+              <select
+                value={selectedProviderId}
+                onChange={e => setSelectedProviderId(e.target.value)}
+                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              >
+                <option value="">Practice default (from letterhead)</option>
+                {providers.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name} · {p.role}{p.npi ? ` · NPI ${p.npi}` : ""}
+                  </option>
+                ))}
+              </select>
+              {providerChanged && !loading && (
+                <button
+                  onClick={handleRegenerate}
+                  className="text-xs font-semibold text-white bg-teal-700 px-3 py-1.5 rounded-lg hover:bg-teal-800 transition-colors whitespace-nowrap"
+                >
+                  Regenerate
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Body — scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-h-0">
           {loading && (
@@ -277,7 +378,10 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
           {error && !loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <p className="text-sm text-red-600 font-medium">{error}</p>
-              <button onClick={() => { setError(null); setLoading(true); }} className="text-sm text-teal-600 underline">
+              <button
+                onClick={handleRegenerate}
+                className="text-sm text-teal-600 underline"
+              >
                 Retry
               </button>
             </div>
@@ -302,7 +406,6 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
                   <span className="ml-2 font-normal normal-case text-gray-400">X-rays and supporting documents — included as exhibits in the PDF</span>
                 </p>
 
-                {/* Drop zone */}
                 <div
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={e => { e.preventDefault(); setIsDragging(false); }}
@@ -327,17 +430,13 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
                   <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, PDF accepted</p>
                 </div>
 
-                {/* Attached files list */}
                 {attachments.length > 0 && (
                   <ul className="mt-2 space-y-1.5">
                     {attachments.map((file, i) => (
                       <li key={`${file.name}-${file.size}`} className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
-                        {/* Exhibit badge */}
                         <span className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5 whitespace-nowrap">
                           {exhibitLabel(i)}
                         </span>
-
-                        {/* File type icon */}
                         {file.type === "application/pdf" ? (
                           <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -347,10 +446,8 @@ export default function AppealModal({ claim, onClose }: AppealModalProps) {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         )}
-
                         <span className="text-sm text-gray-800 flex-1 truncate">{file.name}</span>
                         <span className="text-xs text-gray-400 flex-shrink-0">{formatBytes(file.size)}</span>
-
                         <button
                           onClick={() => removeAttachment(i)}
                           className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"

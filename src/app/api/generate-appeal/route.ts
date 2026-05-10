@@ -43,7 +43,12 @@ export async function POST(request: NextRequest) {
 
     const isHoldClaim = !!claim.isHoldClaim;
 
-    const senderBlock = `${letterhead.providerName}
+    // Use rendering provider from the providers table if passed, otherwise fall back to practice letterhead
+    const providerOverride = claim.providerOverride as { full_name: string; npi: string | null } | undefined;
+    const signingName = providerOverride?.full_name ?? letterhead.providerName;
+    const signingNpi = providerOverride?.npi ?? letterhead.npi;
+
+    const senderBlock = `${signingName}
 ${letterhead.practiceName}
 ${letterhead.address}
 ${letterhead.cityStateZip}
@@ -51,9 +56,9 @@ ${letterhead.phone}`;
 
     const signatureBlock = `Sincerely,
 
-${letterhead.providerName}
+${signingName}
 ${letterhead.practiceName}
-NPI: ${letterhead.npi}`;
+NPI: ${signingNpi}`;
 
     const claimDetails = `
 Patient: ${claim.patient ?? 'Unknown'}
