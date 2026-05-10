@@ -1,23 +1,45 @@
 import { NextResponse } from 'next/server';
+import { supabase, createUserClient } from '@/lib/supabase';
 
 const OD_BASE = 'https://api.opendental.com/api/v1';
-const OD_AUTH = 'ODFHIR NFF6i0KrXrxDkZHt/VzkmZEaUWOjnQX2z';
 
-async function odFetch(path: string) {
+async function odFetch(path: string, odAuth: string) {
   const res = await fetch(`${OD_BASE}${path}`, {
-    headers: { Authorization: OD_AUTH, Accept: 'application/json' },
+    headers: { Authorization: odAuth, Accept: 'application/json' },
   });
   if (!res.ok) throw new Error(`Open Dental ${path} returned ${res.status}`);
   return res.json();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const holdClaims: any[] = await odFetch('/claims?ClaimStatus=H');
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const db = createUserClient(token);
+    const { data: settings } = await db
+      .from('user_settings')
+      .select('od_customer_key')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!settings?.od_customer_key) {
+      return NextResponse.json(
+        { error: 'Open Dental API key not configured. Go to Settings to add your key.', code: 'NO_OD_KEY' },
+        { status: 400 }
+      );
+    }
+
+    const odAuth = settings.od_customer_key;
+
+    const holdClaims: any[] = await odFetch('/claims?ClaimStatus=H', odAuth);
 
     const claimsWithProcs = await Promise.all(
       holdClaims.map(async (claim: any) => {
-        const procs: any[] = await odFetch(`/claimprocs?ClaimNum=${claim.ClaimNum}`);
+        const procs: any[] = await odFetch(`/claimprocs?ClaimNum=${claim.ClaimNum}`, odAuth);
         return { ...claim, procedures: procs };
       })
     );

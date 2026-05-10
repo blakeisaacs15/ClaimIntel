@@ -59,15 +59,26 @@ export default function HoldsPage() {
   const [insight, setInsight] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noKeyConfigured, setNoKeyConfigured] = useState(false);
   const router = useRouter();
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
+    setNoKeyConfigured(false);
     try {
-      const res = await fetch("/api/open-dental/holds");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/open-dental/holds", {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load");
+      if (!res.ok) {
+        if (data.code === "NO_OD_KEY") {
+          setNoKeyConfigured(true);
+          return;
+        }
+        throw new Error(data.error ?? "Failed to load");
+      }
       setClaims(data.claims);
       setClaimActions(data.claimActions);
       setTotalAtRisk(data.totalAtRisk);
@@ -129,6 +140,24 @@ export default function HoldsPage() {
         </header>
 
         <main className="p-8 space-y-6">
+          {noKeyConfigured && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-amber-800 mb-1">Open Dental API key not configured</p>
+                <p className="text-sm text-amber-700 mb-3">Add your Open Dental authorization token to start fetching live hold claims.</p>
+                <button
+                  onClick={() => router.push("/dashboard/settings")}
+                  className="text-sm font-semibold text-amber-800 underline hover:text-amber-900"
+                >
+                  Go to Settings &rarr;
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800">
               {error}
