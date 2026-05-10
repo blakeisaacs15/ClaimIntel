@@ -20,6 +20,7 @@ function parseCSV(csvData: string) {
       amount: parseFloat((row['billed_amount'] || row['amount'] || '0').replace(/[$,]/g, '')) || 0,
       reason: row['denial_reason'] || row['reason'] || '—',
       date: row['date_of_service'] || row['date'] || '—',
+      provider: row['rendering_provider'] || row['provider_name'] || row['provider'] || row['doctor'] || row['dentist'] || row['treating_provider'] || '',
       status: 'denied',
     };
   }).filter(c => c.patient !== 'Unknown' || c.payer !== 'Unknown');

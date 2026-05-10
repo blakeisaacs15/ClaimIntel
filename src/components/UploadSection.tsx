@@ -238,6 +238,7 @@ export default function UploadSection() {
               amount: c.amount,
               denial_reason: c.reason,
               date_of_service: c.date,
+              rendering_provider: c.provider || null,
               source_file: file.name,
             }))
           );

@@ -13,6 +13,22 @@ interface ActivityEntry {
   created_at: string;
 }
 
+interface Provider {
+  id: string;
+  full_name: string;
+  npi: string | null;
+  role: string;
+  color: string;
+  created_at: string;
+}
+
+const PROVIDER_COLORS = [
+  '#0d9488', '#2563eb', '#7c3aed', '#dc2626',
+  '#ea580c', '#ca8a04', '#16a34a', '#db2777',
+];
+
+const PROVIDER_ROLES = ['Doctor', 'Hygienist', 'Front Desk', 'Biller'];
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-US", {
@@ -86,6 +102,14 @@ export default function SettingsPage() {
   // Team & Activity
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
 
+  // Providers
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [newProviderName, setNewProviderName] = useState('');
+  const [newProviderNpi, setNewProviderNpi] = useState('');
+  const [newProviderRole, setNewProviderRole] = useState('Doctor');
+  const [newProviderColor, setNewProviderColor] = useState(PROVIDER_COLORS[0]);
+  const [addingProvider, setAddingProvider] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -116,6 +140,14 @@ export default function SettingsPage() {
         .limit(20);
 
       setActivityLog(log ?? []);
+
+      const { data: provs } = await supabase
+        .from("providers")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: true });
+
+      setProviders(provs ?? []);
       setLoading(false);
     });
   }, [router]);
@@ -214,6 +246,33 @@ export default function SettingsPage() {
       setKeyStatus("error");
     }
     setSavingKey(false);
+  };
+
+  const addProvider = async () => {
+    if (!newProviderName.trim()) return;
+    setAddingProvider(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setAddingProvider(false); return; }
+    const { data, error } = await supabase.from("providers").insert({
+      user_id: session.user.id,
+      full_name: newProviderName.trim(),
+      npi: newProviderNpi.trim() || null,
+      role: newProviderRole,
+      color: newProviderColor,
+    }).select().single();
+    if (!error && data) {
+      setProviders(prev => [...prev, data]);
+      setNewProviderName('');
+      setNewProviderNpi('');
+      setNewProviderRole('Doctor');
+      setNewProviderColor(PROVIDER_COLORS[0]);
+    }
+    setAddingProvider(false);
+  };
+
+  const deleteProvider = async (id: string) => {
+    await supabase.from("providers").delete().eq("id", id);
+    setProviders(prev => prev.filter(p => p.id !== id));
   };
 
   if (loading) {
@@ -465,6 +524,104 @@ export default function SettingsPage() {
                   </table>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* ── 4. Providers ──────────────────────────────────────────────────── */}
+          <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Providers</h2>
+              <p className="text-xs text-gray-400">
+                Add your doctors and staff. Providers are matched to claims by name for scorecard analytics.
+              </p>
+            </div>
+
+            {providers.length > 0 && (
+              <div className="space-y-2">
+                {providers.map(p => (
+                  <div key={p.id} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                      <span className="text-sm font-medium text-gray-900">{p.full_name}</span>
+                      {p.npi && (
+                        <span className="text-xs text-gray-400 font-mono">{p.npi}</span>
+                      )}
+                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-medium">
+                        {p.role}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => deleteProvider(p.id)}
+                      className="text-gray-300 hover:text-red-500 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add provider form */}
+            <div className="border border-gray-200 rounded-xl p-4 space-y-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Provider</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={newProviderName}
+                    onChange={e => setNewProviderName(e.target.value)}
+                    placeholder="Dr. Jane Smith"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">NPI Number</label>
+                  <input
+                    type="text"
+                    value={newProviderNpi}
+                    onChange={e => setNewProviderNpi(e.target.value)}
+                    placeholder="1234567890 (optional)"
+                    className={`${inputCls} font-mono`}
+                  />
+                </div>
+              </div>
+              <div className="flex items-end gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    value={newProviderRole}
+                    onChange={e => setNewProviderRole(e.target.value)}
+                    className={inputCls}
+                  >
+                    {PROVIDER_ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Color</label>
+                  <div className="flex items-center gap-1.5">
+                    {PROVIDER_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setNewProviderColor(c)}
+                        className={`w-6 h-6 rounded-full transition-all ${newProviderColor === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'hover:scale-110'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={addProvider}
+                disabled={addingProvider || !newProviderName.trim()}
+                className={primaryBtn}
+              >
+                {addingProvider ? 'Adding...' : '+ Add Provider'}
+              </button>
             </div>
           </section>
 
