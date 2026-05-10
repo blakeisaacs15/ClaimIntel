@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -34,16 +35,37 @@ export default function SettingsPage() {
     if (!odKey.trim()) return;
     setSaving(true);
     setStatus("idle");
+    setErrorMsg(null);
+
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) { setSaving(false); return; }
+
     const db = createUserClient(session.access_token);
-    const { error } = await db
+
+    // Check if a row already exists for this user
+    const { data: existing, error: selectError } = await db
       .from("user_settings")
-      .upsert(
-        { user_id: session.user.id, od_customer_key: odKey.trim(), updated_at: new Date().toISOString() },
-        { onConflict: "user_id" }
-      );
+      .select("user_id")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (selectError && selectError.code !== "PGRST116") {
+      // PGRST116 = no rows found, which is fine; anything else is unexpected
+      console.error("Settings select error:", selectError);
+      setErrorMsg(selectError.message);
+      setStatus("error");
+      setSaving(false);
+      return;
+    }
+
+    const payload = { od_customer_key: odKey.trim() };
+    const { error } = existing
+      ? await db.from("user_settings").update(payload).eq("user_id", session.user.id)
+      : await db.from("user_settings").insert({ user_id: session.user.id, ...payload });
+
     if (error) {
+      console.error("Settings save error:", error);
+      setErrorMsg(error.message);
       setStatus("error");
     } else {
       setSavedKey(odKey.trim());
@@ -116,7 +138,9 @@ export default function SettingsPage() {
                 <p className="text-sm text-green-700 font-medium">Token saved successfully.</p>
               )}
               {status === "error" && (
-                <p className="text-sm text-red-600">Failed to save. Please try again.</p>
+                <p className="text-sm text-red-600">
+                  Failed to save: {errorMsg ?? "unknown error"}
+                </p>
               )}
 
               <button
