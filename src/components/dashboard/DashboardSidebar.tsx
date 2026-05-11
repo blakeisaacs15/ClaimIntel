@@ -125,9 +125,9 @@ export default function DashboardSidebar() {
   };
 
   return (
-    <aside className="w-56 bg-gray-950 flex flex-col h-screen flex-shrink-0 border-r border-white/[0.06]">
+    <aside className="w-56 bg-slate-900 flex flex-col h-screen flex-shrink-0 border-r border-white/[0.06]">
       <div className="px-5 py-5 border-b border-white/[0.08]">
-        <ClaimIntelLogo size={28} textClassName="text-white" textSizeClassName="text-base" />
+        <ClaimIntelLogo size={28} textClassName="text-slate-100" textSizeClassName="text-base" />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -143,7 +143,7 @@ export default function DashboardSidebar() {
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 isActive
                   ? "bg-teal-500/20 text-teal-300 ring-1 ring-teal-400/30"
-                  : "text-gray-300 hover:text-white hover:bg-white/10"
+                  : "text-slate-100 hover:text-white hover:bg-slate-800"
               }`}
             >
               {item.icon}
@@ -160,16 +160,16 @@ export default function DashboardSidebar() {
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">
+              <p className="text-sm font-medium text-slate-100 truncate">
                 {practiceName || "My Practice"}
               </p>
-              <p className="text-xs text-gray-400 truncate">{email ?? ""}</p>
+              <p className="text-xs text-slate-100 truncate">{email ?? ""}</p>
             </div>
           </div>
           <button
             onClick={handleSignOut}
             title="Sign out"
-            className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+            className="text-slate-100 hover:text-white transition-colors flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
