@@ -42,6 +42,8 @@ export default function NewClaimModal({ onClose, onSaved, existingClaim }: NewCl
   const [dateOfService, setDateOfService] = useState(existingClaim?.date_of_service ?? "");
   const [amount, setAmount] = useState(existingClaim?.amount != null ? String(existingClaim.amount) : "");
   const [denialReason, setDenialReason] = useState(existingClaim?.denial_reason ?? "");
+  const [claimNumber, setClaimNumber] = useState(existingClaim?.claim_id?.startsWith("CLM-M") ? "" : (existingClaim?.claim_id ?? ""));
+  const [claimStatus, setClaimStatus] = useState(existingClaim?.status ?? "denied");
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [saving, setSaving] = useState(false);
@@ -90,6 +92,7 @@ export default function NewClaimModal({ onClose, onSaved, existingClaim }: NewCl
       denial_reason: denialReason.trim() || null,
       date_of_service: dateOfService || null,
       rendering_provider: renderingProvider,
+      status: claimStatus,
     };
 
     let data: any;
@@ -105,9 +108,10 @@ export default function NewClaimModal({ onClose, onSaved, existingClaim }: NewCl
       data = updated;
       saveError = error;
     } else {
+      const generatedId = `CLM-M${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const { data: inserted, error } = await supabase
         .from("claims")
-        .insert({ ...payload, user_id: session.user.id, claim_id: `CLM-M${Math.random().toString(36).slice(2, 8).toUpperCase()}`, source_file: "manual" })
+        .insert({ ...payload, user_id: session.user.id, claim_id: claimNumber.trim() || generatedId, source_file: "manual" })
         .select()
         .single();
       data = inserted;
@@ -169,6 +173,31 @@ export default function NewClaimModal({ onClose, onSaved, existingClaim }: NewCl
                 placeholder="Delta Dental"
                 className={inputCls}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Claim Number <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                type="text"
+                value={claimNumber}
+                onChange={e => setClaimNumber(e.target.value)}
+                placeholder="e.g. 2024-00123456"
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Claim Status</label>
+              <select
+                value={claimStatus}
+                onChange={e => setClaimStatus(e.target.value)}
+                className={inputCls}
+              >
+                <option value="denied">Denied</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="on_hold">On Hold</option>
+              </select>
             </div>
 
             <div>
