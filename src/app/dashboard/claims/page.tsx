@@ -58,7 +58,7 @@ export default function ClaimsPage() {
     return (
       <div className="flex h-screen overflow-hidden">
         <DashboardSidebar />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-gray-400">Loading claims...</p>
@@ -93,7 +93,7 @@ export default function ClaimsPage() {
           }}
         />
       )}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-gray-50">
         <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">All Claims</h1>
@@ -136,7 +136,7 @@ export default function ClaimsPage() {
           )}
 
           {!isDemo && claims.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
               <div className="p-5 border-b border-gray-200 flex items-center gap-4">
                 <input
                   type="text"

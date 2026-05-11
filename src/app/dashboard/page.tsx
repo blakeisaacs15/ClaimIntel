@@ -95,7 +95,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen overflow-hidden">
         <DashboardSidebar />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-gray-400">Loading your dashboard...</p>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <DashboardSidebar />
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-gray-50">
         <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-8 sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">Denied Claims Analysis</h1>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
 
           {!isDemo && (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6">
                 <h2 className="text-sm font-semibold text-gray-900 mb-1">Denial Reasons</h2>
                 <p className="text-xs text-gray-400 mb-4">All uploaded claims · {data.totalDenied} denials</p>
                 <div className="space-y-3">
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6">
                 <h2 className="text-sm font-semibold text-gray-900 mb-1">Denial Rate by Payer</h2>
                 <p className="text-xs text-gray-400 mb-4">Ranked by denial rate</p>
                 <div className="space-y-3">
@@ -219,7 +219,7 @@ export default function DashboardPage() {
           {!isDemo && <UpcomingRisk />}
 
           {uploadedFiles.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900">Uploaded Files</h2>
