@@ -55,27 +55,36 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
-        system: `You are an expert dental insurance billing specialist. Evaluate each procedure code for claim risk before submission using ONLY the rules in the knowledge base below. Respond with ONLY a valid JSON array, no markdown, no explanation.
+        max_tokens: 2500,
+        system: `You are an expert dental insurance billing specialist. Evaluate each procedure code for claim risk before submission using ONLY the rules in the knowledge base below. Respond with ONLY a valid JSON object, no markdown, no explanation.
 
 ${knowledgeBlock || 'No specific knowledge base rules found for these codes/payer — use general dental billing knowledge.'}`,
         messages: [
           {
             role: 'user',
-            content: `Evaluate these claim details and return a risk assessment for each procedure code.
+            content: `Evaluate these claim details and return a complete risk assessment.
 
 ${claimDetails}
 
-Return a JSON array (one element per code) where each object has:
+Return a JSON object with exactly two keys:
+
+"results": array with one element per procedure code, each object having:
 - "code": the procedure code string
 - "status": "GREEN" (likely to pay), "YELLOW" (needs attention / at risk), or "RED" (likely to deny)
-- "ruleFlag": the specific rule being triggered (e.g. "D2740 requires pre-authorization for Delta Dental — none obtained"), or "No issues identified" for GREEN
-- "fixAction": one actionable step to take before submitting (e.g. "Submit pre-authorization request with pre-op X-ray and clinical narrative to Delta Dental before proceeding"), or "Ready to submit" for GREEN
+- "ruleFlag": the specific rule being triggered, or "No issues identified" for GREEN
+- "fixAction": one concrete actionable step before submitting, or "Ready to submit" for GREEN
 - "confidence": "High", "Medium", or "Low"
+- "needsPreAuth": true if pre-authorization is specifically required or has not been obtained, false otherwise
 
-Consider: pre-authorization requirements, frequency limitations, patient age restrictions, bundling rules, downgrade/alternate benefit policies, documentation requirements, waiting periods, and whether pre-auth was obtained.
+"bundlingConflicts": array of same-day bundling conflicts between the codes listed above (empty array [] if no conflicts). Each conflict object has:
+- "codes": array of the two or more conflicting code strings
+- "description": the specific bundling rule being violated (cite the payer and rule)
+- "action": the exact step to resolve it (e.g., "Remove D1110 — it is included in the D4910 fee")
 
-Return ONLY the JSON array.`,
+Consider for results: pre-authorization requirements, frequency limitations, patient age restrictions, bundling rules, downgrade/alternate benefit policies, documentation requirements, waiting periods, and whether pre-auth was obtained.
+For bundlingConflicts: check ONLY against codes present in this specific visit against each other.
+
+Return ONLY the JSON object.`,
           },
         ],
       }),
@@ -89,7 +98,10 @@ Return ONLY the JSON array.`,
     const data = await aiResponse.json();
     const text = data.content[0].text;
     const clean = text.replace(/```json|```/g, '').trim();
-    const results = JSON.parse(clean);
+    const parsed = JSON.parse(clean);
+
+    const results = parsed.results ?? parsed; // graceful fallback if model returns old array format
+    const bundlingConflicts = parsed.bundlingConflicts ?? [];
 
     if (token) {
       try {
@@ -111,7 +123,7 @@ Return ONLY the JSON array.`,
       }
     }
 
-    return NextResponse.json({ results });
+    return NextResponse.json({ results, bundlingConflicts });
   } catch (error) {
     console.error('Precheck error:', error);
     return NextResponse.json({ error: 'Pre-check failed' }, { status: 500 });
