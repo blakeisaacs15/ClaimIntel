@@ -125,12 +125,12 @@ export default function DashboardSidebar() {
   };
 
   return (
-    <aside className="w-56 bg-gray-900 flex flex-col h-screen flex-shrink-0">
-      <div className="px-5 py-5 border-b border-gray-800">
+    <aside className="w-56 bg-[#0f172a] flex flex-col h-screen flex-shrink-0 border-r border-white/5">
+      <div className="px-5 py-5 border-b border-white/10">
         <ClaimIntelLogo size={28} textClassName="text-white" textSizeClassName="text-base" />
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.href === "/dashboard"
             ? pathname === "/dashboard"
@@ -140,10 +140,10 @@ export default function DashboardSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 isActive
-                  ? "bg-teal-700 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  ? "bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/25"
+                  : "text-slate-400 hover:text-white hover:bg-white/6"
               }`}
             >
               {item.icon}
@@ -153,23 +153,23 @@ export default function DashboardSidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-4 border-t border-gray-800">
+      <div className="px-4 py-4 border-t border-white/10">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 bg-teal-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-teal-500/30">
               {initials}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-white truncate">
                 {practiceName || "My Practice"}
               </p>
-              <p className="text-xs text-gray-500 truncate">{email ?? ""}</p>
+              <p className="text-xs text-slate-500 truncate">{email ?? ""}</p>
             </div>
           </div>
           <button
             onClick={handleSignOut}
             title="Sign out"
-            className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
+            className="text-slate-500 hover:text-white transition-colors flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

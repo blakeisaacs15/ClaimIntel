@@ -136,8 +136,8 @@ export default function ClaimsPage() {
           )}
 
           {!isDemo && claims.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="p-5 border-b border-gray-100 flex items-center gap-4">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-gray-200 flex items-center gap-4">
                 <input
                   type="text"
                   placeholder="Search by patient, payer, procedure, or reason..."
@@ -149,14 +149,14 @@ export default function ClaimsPage() {
               </div>
 
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     {["Claim ID", "Patient", "Payer", "Procedure", "Amount", "Denial Reason", "Date", "Status", ""].map((h, i) => (
-                      <th key={i} className="text-left text-xs font-semibold text-gray-400 px-5 py-3">{h}</th>
+                      <th key={i} className="text-left text-xs font-semibold text-gray-500 px-5 py-3 tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-100">
                   {filtered.map((claim, i) => (
                     <tr key={claim.id ?? i} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-4 text-sm font-medium text-teal-600">{claim.claim_id ?? `CLM-${i + 1}`}</td>
@@ -173,7 +173,7 @@ export default function ClaimsPage() {
                             denied:   { label: "Denied",   cls: "bg-red-50 text-red-700 ring-red-200" },
                             pending:  { label: "Pending",  cls: "bg-amber-50 text-amber-700 ring-amber-200" },
                             approved: { label: "Approved", cls: "bg-green-50 text-green-700 ring-green-200" },
-                            on_hold:  { label: "On Hold",  cls: "bg-gray-100 text-gray-600 ring-gray-200" },
+                            on_hold:  { label: "On Hold",  cls: "bg-blue-50 text-blue-700 ring-blue-200" },
                           };
                           const { label, cls } = cfg[s] ?? cfg.denied;
                           return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ${cls}`}>{label}</span>;

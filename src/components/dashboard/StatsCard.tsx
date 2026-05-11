@@ -36,10 +36,10 @@ export default function StatsCard({
   return (
     <div
       className={[
-        "rounded-2xl p-5 border transition-shadow hover:shadow-md",
+        "rounded-2xl p-5 border shadow-sm transition-shadow hover:shadow-md",
         accent
           ? "bg-brand-700 border-brand-600 text-white"
-          : "bg-white border-gray-100",
+          : "bg-white border-gray-200",
       ].join(" ")}
     >
       <div className="flex items-start justify-between mb-4">

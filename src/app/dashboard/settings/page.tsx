@@ -544,7 +544,7 @@ export default function SettingsPage() {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-100">
                       {activityLog.map(entry => (
                         <tr key={entry.id}>
                           <td className="py-2.5 pr-6 text-gray-700">

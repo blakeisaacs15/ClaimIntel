@@ -175,7 +175,7 @@ export default function DashboardPage() {
 
           {!isDemo && (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <h2 className="text-sm font-semibold text-gray-900 mb-1">Denial Reasons</h2>
                 <p className="text-xs text-gray-400 mb-4">All uploaded claims · {data.totalDenied} denials</p>
                 <div className="space-y-3">
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <h2 className="text-sm font-semibold text-gray-900 mb-1">Denial Rate by Payer</h2>
                 <p className="text-xs text-gray-400 mb-4">Ranked by denial rate</p>
                 <div className="space-y-3">
@@ -219,7 +219,7 @@ export default function DashboardPage() {
           {!isDemo && <UpcomingRisk />}
 
           {uploadedFiles.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900">Uploaded Files</h2>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 {uploadedFiles.map(fileName => (
-                  <div key={fileName} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                  <div key={fileName} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-3">
                       <svg className="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

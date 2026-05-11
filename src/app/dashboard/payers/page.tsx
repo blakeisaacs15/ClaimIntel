@@ -114,7 +114,7 @@ export default function PayersPage() {
           {!isDemo && (
             <>
               <div className="grid grid-cols-3 gap-5">
-                <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
                   <p className="text-xs text-gray-400 mb-1">Total payers tracked</p>
                   <p className="text-3xl font-bold text-gray-900">{payers.length}</p>
                 </div>
@@ -122,7 +122,7 @@ export default function PayersPage() {
                   <p className="text-xs text-teal-200 mb-1">Total revenue at risk</p>
                   <p className="text-3xl font-bold text-white">${totalAtRisk.toLocaleString()}</p>
                 </div>
-                <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
                   <p className="text-xs text-gray-400 mb-1">Worst performing payer</p>
                   <p className="text-2xl font-bold text-red-600">{worstPayer?.payer}</p>
                   <p className="text-xs text-gray-400 mt-1">{worstPayer?.denialRate}% denial rate</p>
@@ -131,7 +131,7 @@ export default function PayersPage() {
 
               <div className="space-y-4">
                 {payers.map((payer, index) => (
-                  <div key={payer.payer} className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <div key={payer.payer} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-sm font-bold text-gray-500">
