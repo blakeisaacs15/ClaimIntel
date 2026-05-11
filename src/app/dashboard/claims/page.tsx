@@ -151,7 +151,7 @@ export default function ClaimsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {["Claim ID", "Patient", "Payer", "Procedure", "Amount", "Denial Reason", "Date", ""].map((h, i) => (
+                    {["Claim ID", "Patient", "Payer", "Procedure", "Amount", "Denial Reason", "Date", "Status", ""].map((h, i) => (
                       <th key={i} className="text-left text-xs font-semibold text-gray-400 px-5 py-3">{h}</th>
                     ))}
                   </tr>
@@ -166,6 +166,19 @@ export default function ClaimsPage() {
                       <td className="px-5 py-4 text-sm font-semibold text-gray-900">${Number(claim.amount || 0).toLocaleString()}</td>
                       <td className="px-5 py-4 text-sm text-gray-600 max-w-xs truncate">{claim.denial_reason ?? "—"}</td>
                       <td className="px-5 py-4 text-sm text-gray-400">{claim.date_of_service ?? "—"}</td>
+                      <td className="px-5 py-4">
+                        {(() => {
+                          const s = claim.status ?? "denied";
+                          const cfg: Record<string, { label: string; cls: string }> = {
+                            denied:   { label: "Denied",   cls: "bg-red-50 text-red-700 ring-red-200" },
+                            pending:  { label: "Pending",  cls: "bg-amber-50 text-amber-700 ring-amber-200" },
+                            approved: { label: "Approved", cls: "bg-green-50 text-green-700 ring-green-200" },
+                            on_hold:  { label: "On Hold",  cls: "bg-gray-100 text-gray-600 ring-gray-200" },
+                          };
+                          const { label, cls } = cfg[s] ?? cfg.denied;
+                          return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ${cls}`}>{label}</span>;
+                        })()}
+                      </td>
                       <td className="px-5 py-4">
                         {confirmDeleteId === claim.id ? (
                           <div className="flex items-center gap-1.5">
