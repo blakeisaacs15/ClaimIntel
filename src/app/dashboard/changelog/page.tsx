@@ -2,10 +2,22 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
 const releases = [
   {
-    version: "1.6",
+    version: "1.7",
     date: "May 2026",
     badge: "Latest",
     badgeCls: "bg-teal-50 text-teal-700 ring-teal-200",
+    items: [
+      { type: "new", text: "Pre-Auth Letter generator — generate a professional pre-authorization request letter directly from any flagged Pre-Check result" },
+      { type: "new", text: "Bundling conflict detection — same-day code conflicts are flagged at the top of results before individual code cards" },
+      { type: "improved", text: "Pre-Check results now include a Pre-Auth Letter button on RED / YELLOW codes that require authorization" },
+      { type: "improved", text: "Pre-auth letters include practice letterhead, CDT code context, payer-specific rules, and a supporting documents checklist — with Copy and Download PDF" },
+    ],
+  },
+  {
+    version: "1.6",
+    date: "May 2026",
+    badge: null,
+    badgeCls: "",
     items: [
       { type: "new", text: "Pre-Check — assess claim risk before submitting to the payer" },
       { type: "new", text: "Color-coded risk results (GREEN / YELLOW / RED) with specific rule flags and fix actions per procedure code" },
