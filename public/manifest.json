@@ -1,10 +1,12 @@
 {
-  "name": "ClaimIntel",
+  "name": "ClaimIntel — Dental Billing Intelligence",
   "short_name": "ClaimIntel",
-  "description": "Dental claim denial analysis and recovery",
-  "start_url": "/",
+  "description": "AI-powered dental claim denial analysis and recovery",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "background_color": "#f9fafb",
   "theme_color": "#0d9488",
   "icons": [
     {
