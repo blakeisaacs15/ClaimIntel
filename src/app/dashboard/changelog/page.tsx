@@ -2,10 +2,22 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
 const releases = [
   {
-    version: "1.5",
-    date: "May 2025",
+    version: "1.6",
+    date: "May 2026",
     badge: "Latest",
     badgeCls: "bg-teal-50 text-teal-700 ring-teal-200",
+    items: [
+      { type: "new", text: "Pre-Check — assess claim risk before submitting to the payer" },
+      { type: "new", text: "Color-coded risk results (GREEN / YELLOW / RED) with specific rule flags and fix actions per procedure code" },
+      { type: "new", text: "Supports multiple procedure codes per patient visit" },
+      { type: "new", text: "Pre-Check history saved per practice — see every check and when it was run" },
+    ],
+  },
+  {
+    version: "1.5",
+    date: "May 2025",
+    badge: null,
+    badgeCls: "",
     items: [
       { type: "new", text: "PWA support — install ClaimIntel as a native app on desktop and mobile" },
       { type: "new", text: "Offline page with reconnect prompt when network is unavailable" },
