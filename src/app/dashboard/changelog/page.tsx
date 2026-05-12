@@ -2,10 +2,20 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
 const releases = [
   {
-    version: "1.7",
+    version: "1.8",
     date: "May 2026",
     badge: "Latest",
     badgeCls: "bg-teal-50 text-teal-700 ring-teal-200",
+    items: [
+      { type: "new", text: "IHCP Indiana (Indiana Medicaid) payer rules — frequency limits, prior auth requirements, bundling rules, and exclusions specific to IHCP dental" },
+      { type: "improved", text: "Payer rules restructured with versioned-by-year support — all rules now tracked per year so 2027 updates require a single config change" },
+    ],
+  },
+  {
+    version: "1.7",
+    date: "May 2026",
+    badge: null,
+    badgeCls: "",
     items: [
       { type: "new", text: "Pre-Auth Letter generator — generate a professional pre-authorization request letter directly from any flagged Pre-Check result" },
       { type: "new", text: "Bundling conflict detection — same-day code conflicts are flagged at the top of results before individual code cards" },
