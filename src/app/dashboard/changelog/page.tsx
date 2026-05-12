@@ -2,10 +2,20 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
 const releases = [
   {
-    version: "1.8",
+    version: "1.9",
     date: "May 2026",
     badge: "Latest",
     badgeCls: "bg-teal-50 text-teal-700 ring-teal-200",
+    items: [
+      { type: "fix", text: "Dashboard now refreshes automatically after a new CSV upload — previously showed stale data from the prior upload" },
+      { type: "fix", text: "Upload sidebar link now routes to the upload page within the dashboard instead of the landing page" },
+    ],
+  },
+  {
+    version: "1.8",
+    date: "May 2026",
+    badge: null,
+    badgeCls: "",
     items: [
       { type: "new", text: "IHCP Indiana (Indiana Medicaid) payer rules — frequency limits, prior auth requirements, bundling rules, and exclusions specific to IHCP dental" },
       { type: "improved", text: "Payer rules restructured with versioned-by-year support — all rules now tracked per year so 2027 updates require a single config change" },
