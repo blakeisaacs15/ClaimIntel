@@ -141,7 +141,7 @@ export default function DashboardPage() {
               </button>
             )}
             <button
-              onClick={() => router.push("/#upload")}
+              onClick={() => router.push("/dashboard/upload")}
               className="flex items-center gap-2 bg-teal-700 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-teal-800 transition-colors"
             >
               Upload New CSV
@@ -153,7 +153,7 @@ export default function DashboardPage() {
           {isDemo && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
               No claims uploaded yet.{" "}
-              <button onClick={() => router.push("/#upload")} className="underline font-medium">
+              <button onClick={() => router.push("/dashboard/upload")} className="underline font-medium">
                 Upload your claims CSV
               </button>{" "}
               to see your denial analysis.
