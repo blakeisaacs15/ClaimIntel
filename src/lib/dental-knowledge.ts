@@ -111,6 +111,8 @@ export const CDT_CODES: Record<string, CDTCode> = {
 
 // ─── Payer-Specific Rules ─────────────────────────────────────────────────────
 
+export const ACTIVE_PAYER_RULES_YEAR = "2026";
+
 interface PayerRules {
   displayName: string;
   frequencyLimits: string[];
@@ -122,8 +124,9 @@ interface PayerRules {
   exclusions?: string[];
 }
 
-const PAYER_RULES: Record<string, PayerRules> = {
+const payerKnowledge: Record<string, Record<string, PayerRules>> = {
   delta_dental: {
+    "2026": {
     displayName: 'Delta Dental',
     frequencyLimits: [
       'Prophylaxis (D1110/D1120): 2x per calendar or benefit year. Adult = age 14+; Child = under age 14.',
@@ -187,9 +190,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Crowns not a benefit where periodontal bone support is inadequate',
       'Missing tooth clause: Teeth missing before effective date typically excluded from prosthetic replacement',
     ],
+    },
   },
 
   cigna: {
+    "2026": {
     displayName: 'Cigna Dental',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -232,9 +237,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Missing tooth clause applies',
       'Some plans exclude implants or have a separate implant rider',
     ],
+    },
   },
 
   aetna: {
+    "2026": {
     displayName: 'Aetna Dental',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -279,9 +286,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Cosmetic procedures',
       'Implants excluded on many Aetna plans',
     ],
+    },
   },
 
   metlife: {
+    "2026": {
     displayName: 'MetLife Dental',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -322,9 +331,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Missing tooth clause: Standard on most MetLife plans',
       'Implants: Often excluded or require separate rider',
     ],
+    },
   },
 
   united_concordia: {
+    "2026": {
     displayName: 'United Concordia (UCCI)',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -357,9 +368,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Missing tooth clause',
       'Cosmetic services',
     ],
+    },
   },
 
   guardian: {
+    "2026": {
     displayName: 'Guardian Dental',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -385,9 +398,11 @@ const PAYER_RULES: Record<string, PayerRules> = {
       'Missing documentation for perio or major services',
     ],
     exclusions: ['Missing tooth clause', 'Cosmetic services'],
+    },
   },
 
   anthem_bcbs: {
+    "2026": {
     displayName: 'Anthem / Blue Cross Blue Shield Dental',
     frequencyLimits: [
       'Prophylaxis: 2x per benefit year',
@@ -409,6 +424,69 @@ const PAYER_RULES: Record<string, PayerRules> = {
       "Verify which BCBS affiliate the patient's plan belongs to before applying generic rules",
     ],
     exclusions: ['Missing tooth clause', 'Cosmetic services'],
+    },
+  },
+
+  ihcp_indiana: {
+    "2026": {
+      displayName: 'IHCP Indiana (Indiana Medicaid)',
+      frequencyLimits: [
+        'Prophylaxis (D1110/D1120): 2x per calendar year; adult prophylaxis covered for members 21+ only if enrolled in a dental plan that includes it — verify member eligibility and program type (HHW, HIP, Hoosier Care Connect)',
+        'Periodic exam (D0120): 2x per calendar year',
+        'Comprehensive exam (D0150): 1x per 36 months',
+        'Bitewing radiographs (D0272/D0274): 1x per calendar year',
+        'Full mouth X-rays (D0210): 1x per 36 months',
+        'Panoramic X-ray (D0330): 1x per 36 months; not separately reimbursable same date as D0210',
+        'Topical fluoride (D1206): 2x per calendar year; covered for members under age 21',
+        'Sealants (D1351): 1x per tooth lifetime; permanent molars only; members under age 21',
+        'Crowns: Prior authorization required; 1x per 5 years per tooth; covered for members under 21 without restriction; adult coverage limited — verify program',
+        'Dentures (D5110–D5120): Prior authorization required; 1x per 5 years',
+        'Periodontal maintenance (D4910): Covered for active perio patients; frequency per program',
+        'Periodontal SRP (D4341/D4342): Prior authorization required for adult members; documentation of bone loss and clinical attachment loss required',
+      ],
+      downgradePolicies: [
+        'Posterior composites (D2391–D2394): IHCP reimburses posterior composites — no blanket downgrade to amalgam. Amalgam is generally not required as the lesser-cost alternative under Indiana Medicaid dental.',
+        'LEPAT does not apply the same way as commercial payers; IHCP uses a fee schedule and covered service list rather than an alternate benefit provision.',
+      ],
+      preAuthRequired: [
+        'Crowns (D2710+): Prior authorization required for all members',
+        'Bridges: Prior authorization required',
+        'Dentures (D5110–D5899): Prior authorization required',
+        'Periodontal surgery (D4210+): Prior authorization required',
+        'Periodontal SRP (D4341/D4342): Prior authorization required for adult members',
+        'Oral surgery beyond simple extractions (D7210+): Prior authorization required',
+        'Orthodontics: Prior authorization required; limited to medical necessity for members under 21',
+        'Implants: Generally not covered under IHCP dental; verify plan',
+      ],
+      bundlingRules: [
+        'D4910 and D1110 not separately billable on the same date',
+        'D0210 (full mouth X-rays) and D0330 (panoramic) not separately reimbursable same date',
+        'D0150 and D0120 not billable same date',
+        'Exam and prophylaxis same date: Allowed',
+        'D4341/D4342 cannot be billed in the same quadrant on the same date',
+        'Crown components (prep, temporization, impressions) included in crown fee — not separately billable',
+      ],
+      commonHoldReasons: [
+        'Prior authorization not obtained before crown, bridge, denture, or major service',
+        'Member eligibility not verified — IHCP eligibility changes monthly; verify on date of service',
+        'Adult member dental benefit limited — confirm covered services for member program type (HHW, HIP, Hoosier Care Connect)',
+        'Missing required documentation for periodontal procedures (bone loss + clinical attachment loss)',
+        'Service not covered for member age — fluoride and sealants have under-21 age limits',
+        'Provider not enrolled as IHCP dental provider — must be enrolled and credentialed before billing',
+        'Out-of-network — IHCP managed care members must see in-network providers; fee-for-service members have broader access',
+        'Frequency limit exceeded — IHCP tracks claims by calendar year; verify prior utilization through EVS',
+      ],
+      waitingPeriods: [
+        'No standard waiting period for Medicaid-eligible members; coverage begins on eligibility effective date',
+      ],
+      exclusions: [
+        'Implants (D6010+): Generally not covered under IHCP dental',
+        'Cosmetic procedures: Not covered',
+        'Adult orthodontics: Not covered except in rare medical necessity cases',
+        'Services by non-enrolled providers: Not reimbursed',
+        'Procedures not on the IHCP covered dental service list: Not reimbursed regardless of medical necessity',
+      ],
+    },
   },
 };
 
@@ -477,8 +555,9 @@ export function getPayerContext(payerNames: string[]): string {
 
   for (const name of payerNames) {
     const key = matchPayer(name);
-    if (key && PAYER_RULES[key] && !matched.has(key)) {
-      matched.set(key, PAYER_RULES[key]);
+    const rules = key && payerKnowledge[key]?.[ACTIVE_PAYER_RULES_YEAR];
+    if (rules && !matched.has(key!)) {
+      matched.set(key!, rules);
     }
   }
 
@@ -508,6 +587,7 @@ function matchPayer(name: string): string | null {
   if (n.includes('concordia') || n.includes('ucci')) return 'united_concordia';
   if (n.includes('guardian')) return 'guardian';
   if (n.includes('anthem') || n.includes('bcbs') || n.includes('blue cross') || n.includes('blue shield')) return 'anthem_bcbs';
+  if (n.includes('ihcp') || n.includes('indiana medicaid') || n.includes('indianamedicaid')) return 'ihcp_indiana';
   return null;
 }
 
