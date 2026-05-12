@@ -84,24 +84,25 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
-        system: `You are an expert dental insurance billing specialist with deep knowledge of CDT procedure codes, payer policies, frequency limitations, and denial patterns. Analyze denied dental claims using ONLY the rules provided in the knowledge base below. Do not invent rules not listed. Respond with ONLY a valid JSON object, no other text.
+        max_tokens: 4096,
+        system: `You are an expert dental insurance billing specialist with deep knowledge of CDT procedure codes, payer policies, frequency limitations, and denial patterns. Analyze denied dental claims using ONLY the rules provided in the knowledge base below. Do not invent rules not listed. Respond with ONLY a valid JSON object, no other text. Keep descriptions under 200 characters each to stay within token limits.
 
 ${knowledgeBlock}`,
         messages: [
           {
             role: 'user',
-            content: `Analyze these denied dental claims using the billing knowledge base in your system prompt. Reference specific payer rules and CDT code requirements when explaining denial reasons and action items.
+            content: `Analyze these denied dental claims. Return ONLY a JSON object — no markdown, no explanation, just the raw JSON.
 
-Return ONLY a JSON object with these exact fields:
 {
   "totalDenied": number,
   "revenueAtRisk": number,
   "topDenialReasons": [{"reason": string, "count": number, "percentage": number}],
   "payerBreakdown": [{"payer": string, "denialCount": number, "denialRate": number}],
-  "actionItems": [{"priority": string, "title": string, "description": string}],
+  "actionItems": [{"priority": "HIGH"|"MEDIUM"|"LOW", "title": string, "description": string}],
   "insight": string
 }
+
+Rules: max 5 actionItems, keep all string values under 200 chars, insight under 300 chars.
 
 Claims data:
 ${csvData}`,
@@ -124,12 +125,22 @@ ${csvData}`,
     }
 
     const text = data.content[0].text;
+    const stopReason = data.stop_reason;
+    if (stopReason === 'max_tokens') {
+      console.error('AI response truncated at max_tokens. Response so far:', text.slice(0, 500));
+    }
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('No JSON object found in AI response:', text);
+      console.error('No JSON object found in AI response (stop_reason:', stopReason, '):', text.slice(0, 500));
       return NextResponse.json({ success: false, error: 'Invalid API response format' }, { status: 500 });
     }
-    const analysis = JSON.parse(jsonMatch[0]);
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error('JSON.parse failed (stop_reason:', stopReason, '). Matched text:', jsonMatch[0].slice(0, 500));
+      return NextResponse.json({ success: false, error: 'Response JSON malformed — try a smaller CSV or fewer claims' }, { status: 500 });
+    }
 
     analysis.claims = claims;
 
