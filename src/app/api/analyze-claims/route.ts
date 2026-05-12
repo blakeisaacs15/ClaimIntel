@@ -32,12 +32,48 @@ export async function POST(request: NextRequest) {
 
     const claims = parseCSV(csvData);
 
-    // Build knowledge context from the actual payers and codes present in this batch
     const payers = extractPayers(claims);
     const codes = extractCDTCodes(claims);
     const cdtContext = getCDTContext(codes);
     const payerContext = getPayerContext(payers);
-    const knowledgeBlock = [cdtContext, payerContext].filter(Boolean).join('\n\n');
+
+    // Fetch live payer rules from public manuals
+    let livePayerRules = '';
+    try {
+      const { getUHCMedicaidUrl } = await import('@/lib/payer-sources/index');
+      const uhcPayers = payers.filter((p: string) =>
+        p.toLowerCase().includes('united') ||
+        p.toLowerCase().includes('uhc')
+      );
+      if (uhcPayers.length > 0) {
+        const fetchRes = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/payer-fetch?url=${encodeURIComponent(getUHCMedicaidUrl('IN'))}&codes=${codes.join(',')}`
+        );
+        if (fetchRes.ok) {
+          const fetchData = await fetchRes.json();
+          if (fetchData.rules) {
+            const rulesRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/payer-rules`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                payerContent: fetchData.rules,
+                cdtCodes: codes,
+                payerName: 'UnitedHealthcare',
+                planType: 'medicaid',
+              }),
+            });
+            if (rulesRes.ok) {
+              const rulesData = await rulesRes.json();
+              livePayerRules = `\n\nLIVE UHC MEDICAID RULES:\n${JSON.stringify(rulesData.rules, null, 2)}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Live payer rules fetch failed, continuing with static rules:', e);
+    }
+
+    const knowledgeBlock = [cdtContext, payerContext, livePayerRules].filter(Boolean).join('\n\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
