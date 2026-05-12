@@ -247,6 +247,7 @@ export default function UploadSection() {
 
       logActivity("upload_claims", { fileCount: files.length });
       router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       setError("Something went wrong. Please try again.");
       setIsProcessing(false);
