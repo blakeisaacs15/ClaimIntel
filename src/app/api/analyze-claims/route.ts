@@ -124,8 +124,12 @@ ${csvData}`,
     }
 
     const text = data.content[0].text;
-    const clean = text.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(clean);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('No JSON object found in AI response:', text);
+      return NextResponse.json({ success: false, error: 'Invalid API response format' }, { status: 500 });
+    }
+    const analysis = JSON.parse(jsonMatch[0]);
 
     analysis.claims = claims;
 

@@ -176,7 +176,9 @@ export default function UploadSection() {
         });
 
         const result = await response.json();
-        if (!result.success) { setError("Analysis failed."); continue; }
+        if (!result.success) {
+          throw new Error(result.error || "Analysis failed. Please check your CSV format and try again.");
+        }
 
         const newData = result.analysis;
         const newClaims = result.analysis.claims || [];
@@ -203,7 +205,7 @@ export default function UploadSection() {
           newData.payerBreakdown = Object.values(payerMap).sort((a: any, b: any) => b.denialCount - a.denialCount);
           newData.actionItems = [...(existing.action_items || []), ...(newData.actionItems || [])];
 
-          await supabase.from("analyses").update({
+          const { error: updateError } = await supabase.from("analyses").update({
             total_denied: newData.totalDenied,
             revenue_at_risk: newData.revenueAtRisk,
             top_denial_reasons: newData.topDenialReasons,
@@ -213,9 +215,10 @@ export default function UploadSection() {
             uploaded_files: [...uploadedFiles, file.name],
             updated_at: new Date().toISOString(),
           }).eq("user_id", userId);
+          if (updateError) throw new Error(`Failed to save analysis: ${updateError.message}`);
 
         } else {
-          await supabase.from("analyses").insert({
+          const { error: insertError } = await supabase.from("analyses").insert({
             user_id: userId,
             total_denied: newData.totalDenied,
             revenue_at_risk: newData.revenueAtRisk,
@@ -225,10 +228,11 @@ export default function UploadSection() {
             insight: newData.insight,
             uploaded_files: [file.name],
           });
+          if (insertError) throw new Error(`Failed to save analysis: ${insertError.message}`);
         }
 
         if (newClaims.length > 0) {
-          await supabase.from("claims").insert(
+          const { error: claimsError } = await supabase.from("claims").insert(
             newClaims.map((c: any) => ({
               user_id: userId,
               claim_id: c.id,
@@ -242,14 +246,15 @@ export default function UploadSection() {
               source_file: file.name,
             }))
           );
+          if (claimsError) throw new Error(`Failed to save claims: ${claimsError.message}`);
         }
       }
 
       logActivity("upload_claims", { fileCount: files.length });
       router.push("/dashboard");
       router.refresh();
-    } catch (err) {
-      setError("Something went wrong. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
       setIsProcessing(false);
     }
   };
